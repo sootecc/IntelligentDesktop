@@ -34,4 +34,5 @@ Intelligent Desktop은 바탕화면의 아이콘들을 종류별로 상자(Box)�
 - **설정 초기화**: `%AppData%\IntelligentDesktop` 폴더를 삭제하면 초기 상태로 돌아갑니다.
 
 ---
+https://www.openwork.co.kr/
 Made with ❤️ by IntelligentDesktop Team
