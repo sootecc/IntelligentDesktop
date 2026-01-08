@@ -203,16 +203,8 @@ public partial class BoxWindow : Window
     /// </summary>
     private void ShowTitleEditWindow()
     {
-        // TitleText의 화면 위치 계산
-        var titlePoint = TitleText.PointToScreen(new System.Windows.Point(0, 0));
-
-        var editWindow = new TitleEditWindow(_box.Name)
-        {
-            Left = titlePoint.X,
-            Top = titlePoint.Y,
-            Width = TitleText.ActualWidth + 20,
-            Owner = this
-        };
+        // Owner를 설정하지 않음 (투명 창이 Owner면 IME가 안 됨)
+        var editWindow = new TitleEditWindow(_box.Name);
 
         editWindow.ShowDialog();
 

@@ -27,8 +27,8 @@
     <Window.Resources>
         <!-- 아이콘 항목 템플릿 -->
         <DataTemplate x:Key="IconItemTemplate">
-            <StackPanel Orientation="Vertical" 
-                        Width="70" Height="80"
+            <StackPanel Orientation="Vertical"
+                        Width="70" MinHeight="80"
                         Margin="5"
                         ToolTip="{Binding Name}"
                         Background="Transparent"
@@ -36,10 +36,11 @@
                         PreviewMouseLeftButtonDown="Icon_PreviewMouseLeftButtonDown"
                         MouseRightButtonUp="Icon_MouseRightButtonUp"
                         MouseMove="Icon_MouseMove">
-                <Image Source="{Binding Icon}" 
+                <Image Source="{Binding Icon}"
                        Width="48" Height="48"
                        HorizontalAlignment="Center"/>
-                <TextBlock Text="{Binding Name}" 
+                <TextBlock x:Name="IconNameText"
+                           Text="{Binding Name}"
                            TextTrimming="CharacterEllipsis"
                            TextAlignment="Center"
                            Foreground="White"
@@ -48,6 +49,12 @@
                            MaxHeight="28"
                            TextWrapping="Wrap"/>
             </StackPanel>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                    <Setter TargetName="IconNameText" Property="MaxHeight" Value="100"/>
+                    <Setter TargetName="IconNameText" Property="TextTrimming" Value="None"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
     </Window.Resources>
     

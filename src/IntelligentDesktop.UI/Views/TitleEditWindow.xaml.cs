@@ -10,6 +10,7 @@ public partial class TitleEditWindow : Window
 {
     public string ResultText { get; private set; } = string.Empty;
     public bool IsConfirmed { get; private set; } = false;
+    private bool _isClosing = false;
 
     public TitleEditWindow(string initialText)
     {
@@ -37,8 +38,8 @@ public partial class TitleEditWindow : Window
 
     private void Window_Deactivated(object sender, EventArgs e)
     {
-        // 포커스를 잃으면 확인 처리
-        if (IsVisible)
+        // 포커스를 잃으면 확인 처리 (이미 닫히는 중이 아닐 때만)
+        if (!_isClosing && IsVisible)
         {
             Confirm();
         }
@@ -46,6 +47,8 @@ public partial class TitleEditWindow : Window
 
     private void Confirm()
     {
+        if (_isClosing) return;
+        _isClosing = true;
         ResultText = EditBox.Text;
         IsConfirmed = true;
         Close();
@@ -53,6 +56,8 @@ public partial class TitleEditWindow : Window
 
     private void Cancel()
     {
+        if (_isClosing) return;
+        _isClosing = true;
         IsConfirmed = false;
         Close();
     }

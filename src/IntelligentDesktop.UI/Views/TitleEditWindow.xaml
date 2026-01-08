@@ -1,25 +1,40 @@
 <Window x:Class="IntelligentDesktop.UI.Views.TitleEditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Edit Title"
-        Width="200" Height="30"
-        WindowStyle="None"
+        Title="이름 편집"
+        Width="350" Height="120"
+        WindowStyle="ToolWindow"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Topmost="True"
-        Background="#333333"
-        BorderBrush="#666666"
-        BorderThickness="1"
+        WindowStartupLocation="CenterScreen"
+        Background="#F0F0F0"
         Deactivated="Window_Deactivated">
 
-    <TextBox x:Name="EditBox"
-             Background="#FFFFFF"
-             Foreground="#000000"
-             FontSize="12"
-             FontWeight="SemiBold"
-             Padding="4,2"
-             BorderThickness="0"
-             VerticalContentAlignment="Center"
-             KeyDown="EditBox_KeyDown"
-             InputMethod.IsInputMethodEnabled="True"/>
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBox x:Name="EditBox"
+                 Grid.Row="0"
+                 Height="36"
+                 Background="#FFFFFF"
+                 Foreground="#000000"
+                 FontSize="16"
+                 Padding="8,4"
+                 BorderThickness="1"
+                 BorderBrush="#AAAAAA"
+                 VerticalContentAlignment="Center"
+                 KeyDown="EditBox_KeyDown"
+                 InputMethod.IsInputMethodEnabled="True"
+                 InputMethod.PreferredImeState="On"/>
+
+        <TextBlock Grid.Row="1"
+                   Text="Enter: 확인 / Esc: 취소"
+                   Foreground="#666666"
+                   FontSize="11"
+                   Margin="0,8,0,0"/>
+    </Grid>
 </Window>
