@@ -106,17 +106,6 @@
                                Margin="10,0,30,0"
                                TextTrimming="CharacterEllipsis"
                                MouseLeftButtonDown="TitleText_MouseLeftButtonDown"/>
-                    <TextBox x:Name="TitleEditBox"
-                             Visibility="Collapsed"
-                             Foreground="Black"
-                             Background="White"
-                             FontSize="12"
-                             FontWeight="SemiBold"
-                             VerticalAlignment="Center"
-                             Margin="10,0,30,0"
-                             Padding="2"
-                             KeyDown="TitleEditBox_KeyDown"
-                             LostFocus="TitleEditBox_LostFocus"/>
                     
                     <!-- 최소화 버튼 -->
                     <Button x:Name="MinimizeButton"

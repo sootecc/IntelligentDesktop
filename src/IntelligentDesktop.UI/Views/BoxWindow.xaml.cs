@@ -193,57 +193,39 @@ public partial class BoxWindow : Window
     {
         if (e.ClickCount == 2)
         {
-            TitleText.Visibility = Visibility.Collapsed;
-            TitleEditBox.Visibility = Visibility.Visible;
-            TitleEditBox.Text = _box.Name;
-            TitleEditBox.Focus();
-            TitleEditBox.SelectAll();
             e.Handled = true;
+            ShowTitleEditWindow();
         }
     }
 
-    private void TitleEditBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    /// <summary>
+    /// 제목 편집을 위한 별도 창 표시 (IME 입력 지원)
+    /// </summary>
+    private void ShowTitleEditWindow()
     {
-        if (e.Key == Key.Enter)
-        {
-            CommitTitleEdit();
-        }
-        else if (e.Key == Key.Escape)
-        {
-            CancelTitleEdit();
-        }
-    }
+        // TitleText의 화면 위치 계산
+        var titlePoint = TitleText.PointToScreen(new System.Windows.Point(0, 0));
 
-    private void TitleEditBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        CommitTitleEdit();
-    }
-
-    private void CommitTitleEdit()
-    {
-        if (TitleEditBox.Visibility == Visibility.Visible)
+        var editWindow = new TitleEditWindow(_box.Name)
         {
-            string newName = TitleEditBox.Text;
-            if (!string.IsNullOrWhiteSpace(newName))
+            Left = titlePoint.X,
+            Top = titlePoint.Y,
+            Width = TitleText.ActualWidth + 20,
+            Owner = this
+        };
+
+        editWindow.ShowDialog();
+
+        if (editWindow.IsConfirmed && !string.IsNullOrWhiteSpace(editWindow.ResultText))
+        {
+            _box.Name = editWindow.ResultText;
+            TitleText.Text = editWindow.ResultText;
+
+            if (System.Windows.Application.Current is IntelligentDesktop.UI.App app)
             {
-                _box.Name = newName;
-                TitleText.Text = newName;
-                
-                if (System.Windows.Application.Current is IntelligentDesktop.UI.App app)
-                {
-                    app.SaveConfiguration();
-                }
+                app.SaveConfiguration();
             }
-            
-            TitleEditBox.Visibility = Visibility.Collapsed;
-            TitleText.Visibility = Visibility.Visible;
         }
-    }
-
-    private void CancelTitleEdit()
-    {
-        TitleEditBox.Visibility = Visibility.Collapsed;
-        TitleText.Visibility = Visibility.Visible;
     }
 
     private void Icon_MouseRightButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)

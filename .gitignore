@@ -22,3 +22,7 @@ logs/
 
 # Intelligent Desktop specific
 crash.log
+
+# AI tools & drafts
+.claude/
+blog_post.md
