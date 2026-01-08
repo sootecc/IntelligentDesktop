@@ -653,6 +653,15 @@ public partial class App : Application
         catch { }
     }
 
+    private string GetLongPath(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return path;
+        // 이미 접두사가 있거나, UNC 경로인 경우 등 복잡한 케이스 고려
+        // 여기서는 단순하게 로컬 절대 경로에 접두사 추가
+        if (path.StartsWith(@"\\?\")) return path;
+        return @"\\?\" + path;
+    }
+
     /// <summary>
     /// 박스로 파일 재수거 (프로그램 시작 시)
     /// </summary>

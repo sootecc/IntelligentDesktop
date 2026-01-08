@@ -74,12 +74,23 @@ public static class DefaultCategories
     public static readonly SortRule Folders = new()
     {
         Name = "폴더",
-        Extensions = new List<string> { ".folder" } // SortingService에서 가상 확장자로 처리
+        Extensions = new List<string> { ".folder" }, // SortingService에서 가상 확장자로 처리
+        Priority = 99
     };
     
+    /// <summary>
+    /// 기타 (분류되지 않은 모든 파일)
+    /// </summary>
+    public static readonly SortRule Others = new()
+    {
+        Name = "기타",
+        Extensions = new List<string> { ".*" },
+        Priority = 100
+    };
+
     /// <summary>모든 기본 카테고리 목록</summary>
     public static List<SortRule> All => new()
     {
-        Documents, Images, Videos, Music, Programs, Archives, Code, Folders
+        Documents, Images, Videos, Music, Programs, Archives, Code, Folders, Others
     };
 }

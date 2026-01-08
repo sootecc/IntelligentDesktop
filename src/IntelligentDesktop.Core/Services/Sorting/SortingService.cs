@@ -70,10 +70,17 @@ public class SortingService : ISortingService
         if (string.IsNullOrEmpty(extension)) return null;
         
         // 우선순위 순으로 정렬된 활성 규칙 중 매칭되는 첫 번째 반환
-        return _rules
+        var rule = _rules
             .Where(r => r.IsEnabled)
             .OrderBy(r => r.Priority)
             .FirstOrDefault(r => r.Extensions.Contains(extension, StringComparer.OrdinalIgnoreCase));
+            
+        if (rule != null) return rule;
+
+        // 매칭되는 규칙이 없으면 '기타(.*)' 규칙 찾기
+        return _rules
+            .Where(r => r.IsEnabled)
+            .FirstOrDefault(r => r.Extensions.Contains(".*"));
     }
 
     /// <summary>

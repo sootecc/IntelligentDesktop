@@ -701,5 +701,12 @@ public partial class BoxWindow : Window
             _box.Id.ToString());
     }
 
+    private string GetLongPath(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return path;
+        if (path.StartsWith(@"\\?\")) return path;
+        return @"\\?\" + path;
+    }
+
     #endregion
 }
