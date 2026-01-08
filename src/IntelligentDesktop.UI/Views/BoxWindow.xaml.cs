@@ -128,9 +128,47 @@ public partial class BoxWindow : Window
             _isTitleBarDragging = false;
             if (sender is UIElement el) el.ReleaseMouseCapture();
             
+            // 박스 이동량 계산
+            double deltaX = Left - _dragStartWindowPos.X;
+            double deltaY = Top - _dragStartWindowPos.Y;
+            
+            // 내부 아이콘들도 함께 이동
+            if (Math.Abs(deltaX) > 1 || Math.Abs(deltaY) > 1)
+            {
+                MoveIconsWithBox(deltaX, deltaY);
+            }
+            
             if (System.Windows.Application.Current is IntelligentDesktop.UI.App app)
             {
                 app.SaveConfiguration();
+            }
+        }
+    }
+    
+    /// <summary>
+    /// 박스 이동 시 내부 아이콘들도 함께 이동
+    /// </summary>
+    private void MoveIconsWithBox(double deltaX, double deltaY)
+    {
+        if (_box.IconPaths.Count == 0) return;
+        
+        var app = System.Windows.Application.Current as IntelligentDesktop.UI.App;
+        if (app?.DesktopIconService == null) return;
+        
+        var allIcons = app.DesktopIconService.GetAllIcons();
+        
+        foreach (var path in _box.IconPaths)
+        {
+            for (int i = 0; i < allIcons.Count; i++)
+            {
+                if (string.Equals(allIcons[i].FullPath, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    // 현재 위치에서 이동량만큼 더함
+                    double newX = allIcons[i].Position.X + deltaX;
+                    double newY = allIcons[i].Position.Y + deltaY;
+                    app.DesktopIconService.SetIconPosition(i, new System.Windows.Point(newX, newY));
+                    break;
+                }
             }
         }
     }
@@ -359,89 +397,56 @@ public partial class BoxWindow : Window
         // 스타일 복원
         ApplyStyle(_box.Style);
         
-        // [1] 원래 아이콘 위치 저장
-        try
-        {
-            var app = System.Windows.Application.Current as IntelligentDesktop.UI.App;
-            if (app?.DesktopIconService != null && e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop))
-            {
-                string[]? files = e.Data.GetData(System.Windows.DataFormats.FileDrop) as string[];
-                if (files != null)
-                {
-                    // 현재 바탕화면 아이콘 상태 가져오기
-                    var icons = app.DesktopIconService.GetAllIcons();
-                    
-                    foreach (string file in files)
-                    {
-                        var icon = icons.FirstOrDefault(i => string.Equals(i.FullPath, file, StringComparison.OrdinalIgnoreCase));
-                        if (icon != null)
-                        {
-                            string fileName = System.IO.Path.GetFileName(file);
-                            // 좌표 저장 (X,Y)
-                            _box.OriginalPositions[fileName] = $"{icon.Position.X},{icon.Position.Y}";
-                        }
-                    }
-                    app.SaveConfiguration();
-                }
-            }
-        }
-        catch { }
-        
+        // 드롭된 파일의 아이콘 위치를 박스 내부로 이동
         if (e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop))
         {
             string[]? files = e.Data.GetData(System.Windows.DataFormats.FileDrop) as string[];
             if (files != null)
             {
-                // 박스 저장소 폴더 준비
-                string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                string boxFolder = System.IO.Path.Combine(documentsPath, "IntelligentDesktop", "Boxes", _box.Id.ToString());
-                
-                if (!System.IO.Directory.Exists(boxFolder))
+                var app = System.Windows.Application.Current as IntelligentDesktop.UI.App;
+                if (app?.DesktopIconService != null)
                 {
-                    System.IO.Directory.CreateDirectory(boxFolder);
-                }
-
-                foreach (string file in files)
-                {
-                    // 이미 박스 폴더 안에 있는 파일이면 경로만 추가
-                    if (file.StartsWith(boxFolder, StringComparison.OrdinalIgnoreCase))
-                    {
-                        AddIconToBox(file);
-                        continue;
-                    }
-
-                    // 파일/폴더 이동
-                    string fileName = System.IO.Path.GetFileName(file);
-                    string destPath = System.IO.Path.Combine(boxFolder, fileName);
+                    // 현재 바탕화면 아이콘 가져오기
+                    var allIcons = app.DesktopIconService.GetAllIcons();
                     
-                    try 
+                    // 박스 내부 시작 위치 계산 (화면 좌표)
+                    var boxScreenPos = PointToScreen(new System.Windows.Point(10, 40)); // 타이틀바 아래
+                    int iconSpacing = 80;
+                    int iconsPerRow = Math.Max(1, (int)(Width - 20) / iconSpacing);
+                    int iconIndex = 0;
+                    
+                    foreach (string file in files)
                     {
-                        if (System.IO.File.Exists(file))
+                        // 해당 파일의 아이콘 인덱스 찾기
+                        for (int i = 0; i < allIcons.Count; i++)
                         {
-                            if (!System.IO.File.Exists(destPath))
+                            if (string.Equals(allIcons[i].FullPath, file, StringComparison.OrdinalIgnoreCase))
                             {
-                                System.IO.File.Move(file, destPath);
-                                AddIconToBox(destPath);
-                            }
-                        }
-                        else if (System.IO.Directory.Exists(file))
-                        {
-                            if (!System.IO.Directory.Exists(destPath))
-                            {
-                                System.IO.Directory.Move(file, destPath);
-                                AddIconToBox(destPath);
+                                // 박스 내 위치 계산
+                                int row = iconIndex / iconsPerRow;
+                                int col = iconIndex % iconsPerRow;
+                                double newX = boxScreenPos.X + col * iconSpacing;
+                                double newY = boxScreenPos.Y + row * iconSpacing;
+                                
+                                // 아이콘 위치 이동
+                                app.DesktopIconService.SetIconPosition(i, new System.Windows.Point(newX, newY));
+                                
+                                // 박스에 경로 저장 (추적용)
+                                if (!_box.IconPaths.Contains(file))
+                                {
+                                    _box.IconPaths.Add(file);
+                                }
+                                
+                                iconIndex++;
+                                break;
                             }
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Move failed: {ex.Message}");
-                    }
+                    
+                    app.SaveConfiguration();
+                    RefreshIconList();
+                    IconsChanged?.Invoke(this, EventArgs.Empty);
                 }
-                RefreshIconList();
-                
-                // 아이콘 추가 이벤트 발생
-                IconsChanged?.Invoke(this, EventArgs.Empty);
             }
         }
         e.Handled = true;
@@ -470,52 +475,35 @@ public partial class BoxWindow : Window
     }
 
     /// <summary>
-    /// 아이콘 목록 새로고침 (폴더 스캔)
+    /// 아이콘 목록 새로고침 (IconPaths 기반)
     /// </summary>
     public void RefreshIconList()
     {
-        string path = GetBoxFolderPath();
-        if (!System.IO.Directory.Exists(path))
-        {
-            IconList.ItemsSource = null;
-            EmptyHint.Visibility = Visibility.Visible;
-            return;
-        }
-
         try
         {
-            var files = System.IO.Directory.GetFiles(path);
-            var directories = System.IO.Directory.GetDirectories(path);
-            
-            _box.IconPaths.Clear();
-            foreach(var f in files) _box.IconPaths.Add(f);
-            foreach(var d in directories) _box.IconPaths.Add(d);
-
             var icons = new List<DesktopIcon>();
             
-            // 폴더 먼저
-            foreach (var dir in directories)
+            // IconPaths에서 존재하는 파일/폴더만 표시
+            var validPaths = new List<string>();
+            foreach (var path in _box.IconPaths.ToList())
             {
-                icons.Add(new DesktopIcon
+                if (System.IO.File.Exists(path) || System.IO.Directory.Exists(path))
                 {
-                    Name = System.IO.Path.GetFileName(dir),
-                    FullPath = dir,
-                    IsDirectory = true,
-                    Icon = GetIconForPath(dir)
-                });
+                    validPaths.Add(path);
+                    bool isDir = System.IO.Directory.Exists(path);
+                    icons.Add(new DesktopIcon
+                    {
+                        Name = System.IO.Path.GetFileName(path),
+                        FullPath = path,
+                        IsDirectory = isDir,
+                        Icon = GetIconForPath(path)
+                    });
+                }
             }
             
-            // 파일
-            foreach (var file in files)
-            {
-                icons.Add(new DesktopIcon
-                {
-                    Name = System.IO.Path.GetFileName(file),
-                    FullPath = file,
-                    IsDirectory = false,
-                    Icon = GetIconForPath(file)
-                });
-            }
+            // 유효하지 않은 경로 제거
+            _box.IconPaths.Clear();
+            foreach (var p in validPaths) _box.IconPaths.Add(p);
 
             IconList.ItemsSource = icons;
             EmptyHint.Visibility = icons.Count == 0 ? Visibility.Visible : Visibility.Collapsed;

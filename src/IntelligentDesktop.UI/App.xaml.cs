@@ -177,8 +177,7 @@ public partial class App : Application
 
         foreach (var box in _config.Boxes)
         {
-            // 시작 시 바탕화면에서 파일 재수거
-            CollectFilesFromDesktop(box);
+            // iTop 방식: 파일 수거 불필요 (아이콘 위치만 관리)
 
             var window = new BoxWindow(box);
             window.Closing += BoxWindow_Closing;
@@ -240,8 +239,7 @@ public partial class App : Application
     {
         if (sender is BoxWindow window)
         {
-            // 박스가 닫힐 때 파일 복구
-            RestoreFilesForBox(window.Box);
+            // iTop 방식: 파일 복구 불필요 (아이콘 위치만 관리)
             
             _boxWindows.Remove(window);
             _config?.Boxes.Remove(window.Box);
@@ -333,8 +331,7 @@ public partial class App : Application
 
     private void ExitApplication()
     {
-        // 종료 시 파일 복구 우선 실행
-        RestoreFilesToDesktop();
+        // iTop 방식: 파일 복구 불필요 (아이콘 위치만 관리)
         
         SaveConfiguration();
         _globalMouseHook?.Dispose();
@@ -554,7 +551,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        RestoreFilesToDesktop();
+        // iTop 방식: 파일 복구 불필요
         _screenMonitorService?.Dispose();
         // _globalMouseHook 제거됨
         _desktopIntegrationService?.Dispose();
@@ -562,297 +559,16 @@ public partial class App : Application
         _desktopIconService?.Dispose();
         base.OnExit(e);
     }
-
-    /// <summary>
-    /// 종료 시 박스 내용물을 바탕화면으로 복구 (강력한 버전)
-    /// </summary>
-    private void RestoreFilesToDesktop()
-    {
-        try
-        {
-            // 1. 메모리 상의 열려있는 박스들 먼저 정확하게 복구 시도 (위치 기억 활용)
-            foreach (var window in _boxWindows.ToList())
-            {
-                if (window.Box != null)
-                {
-                    RestoreFilesForBox(window.Box);
-                }
-            }
-
-            // 2. 안전장치: 혹시라도 남아있는 파일이 있는지 물리적 폴더를 털어서 복구
-            // (윈도우가 닫혔거나 오류로 누락된 파일들 구제)
-            string boxesRoot = System.IO.Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), 
-                "IntelligentDesktop", "Boxes");
-
-            if (System.IO.Directory.Exists(boxesRoot))
-            {
-                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-
-                foreach (var boxDir in System.IO.Directory.GetDirectories(boxesRoot))
-                {
-                    // 폴더 내 모든 파일/하위폴더를 바탕화면으로 이동
-                    MoveAllContentToDest(boxDir, desktopPath);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"전체 복구 중 오류: {ex.Message}");
-            LogError("RestoreToDesktop", ex);
-        }
-    }
-
-    private void MoveAllContentToDest(string sourceDir, string destDir)
-    {
-        try
-        {
-            if (!System.IO.Directory.Exists(sourceDir)) return;
-
-            // 파일 이동
-            foreach (var file in System.IO.Directory.GetFiles(sourceDir))
-            {
-                try
-                {
-                    string fileName = System.IO.Path.GetFileName(file);
-                    string destPath = System.IO.Path.Combine(destDir, fileName);
-                    
-                    // 이름 충돌 처리
-                    int count = 1;
-                    while (System.IO.File.Exists(destPath) || System.IO.Directory.Exists(destPath))
-                    {
-                        string nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(fileName);
-                        string ext = System.IO.Path.GetExtension(fileName);
-                        destPath = System.IO.Path.Combine(destDir, $"{nameWithoutExt} ({count++}){ext}");
-                    }
-                    
-                    System.IO.File.Move(file, destPath);
-                }
-                catch { }
-            }
-
-            // 하위 폴더 이동
-            foreach (var dir in System.IO.Directory.GetDirectories(sourceDir))
-            {
-                try
-                {
-                    string dirName = System.IO.Path.GetFileName(dir);
-                    string destPath = System.IO.Path.Combine(destDir, dirName);
-                    
-                    int count = 1;
-                    while (System.IO.File.Exists(destPath) || System.IO.Directory.Exists(destPath))
-                    {
-                        destPath = System.IO.Path.Combine(destDir, $"{dirName} ({count++})");
-                    }
-                    
-                    System.IO.Directory.Move(dir, destPath);
-                }
-                catch { }
-            }
-        }
-        catch { }
-    }
-
-    private string GetLongPath(string path)
-    {
-        if (string.IsNullOrEmpty(path)) return path;
-        // 이미 접두사가 있거나, UNC 경로인 경우 등 복잡한 케이스 고려
-        // 여기서는 단순하게 로컬 절대 경로에 접두사 추가
-        if (path.StartsWith(@"\\?\")) return path;
-        return @"\\?\" + path;
-    }
-
-    /// <summary>
-    /// 박스로 파일 재수거 (프로그램 시작 시)
-    /// </summary>
-    private void CollectFilesFromDesktop(Box box)
-    {
-        try
-        {
-            string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            string boxFolderPath = System.IO.Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "IntelligentDesktop", "Boxes", box.Id.ToString());
-            
-            if (!System.IO.Directory.Exists(boxFolderPath))
-                System.IO.Directory.CreateDirectory(boxFolderPath);
-
-            // 저장된 경로 목록 확인
-            var savedPaths = box.IconPaths.ToList();
-            foreach (var savedPath in savedPaths)
-            {
-                try
-                {
-                    string fileName = System.IO.Path.GetFileName(savedPath);
-                    if (string.IsNullOrEmpty(fileName)) continue;
-
-                    string desktopFilePath = System.IO.Path.Combine(desktopPath, fileName);
-                    string targetBoxFilePath = System.IO.Path.Combine(boxFolderPath, fileName);
-                    
-                    // 파일 처리
-                    if (System.IO.File.Exists(desktopFilePath) && !System.IO.File.Exists(targetBoxFilePath))
-                    {
-                        System.IO.File.Move(desktopFilePath, targetBoxFilePath);
-                    }
-                    // 폴더 처리
-                    else if (System.IO.Directory.Exists(desktopFilePath) && !System.IO.Directory.Exists(targetBoxFilePath))
-                    {
-                        System.IO.Directory.Move(desktopFilePath, targetBoxFilePath);
-                    }
-                }
-                catch { }
-            }
-        }
-        catch { }
-    }
-
-    /// <summary>
-    /// 특정 박스의 파일을 바탕화면으로 복구
-    /// </summary>
-    private void RestoreFilesForBox(Box box)
-    {
-        try
-        {
-            string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            var restoreList = new List<(string Path, string Position)>();
-            
-            // 리스트 복사본으로 순회
-            var icons = box.IconPaths.ToList();
-            foreach (var iconPath in icons)
-            {
-                if (System.IO.File.Exists(iconPath))
-                {
-                    try
-                    {
-                        string fileName = System.IO.Path.GetFileName(iconPath);
-                        string destPath = System.IO.Path.Combine(desktopPath, fileName);
-                        
-                        // 이름 충돌 처리
-                        int count = 1;
-                        while (System.IO.File.Exists(destPath) || System.IO.Directory.Exists(destPath))
-                        {
-                            string nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(fileName);
-                            string ext = System.IO.Path.GetExtension(fileName);
-                            destPath = System.IO.Path.Combine(desktopPath, $"{nameWithoutExt} ({count++}){ext}");
-                        }
-                        
-                        System.IO.File.Move(iconPath, destPath);
-                        
-                        // 위치 복원 리스트에 추가
-                        if (box.OriginalPositions != null && box.OriginalPositions.ContainsKey(fileName))
-                        {
-                            restoreList.Add((destPath, box.OriginalPositions[fileName]));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"파일 복구 실패 ({iconPath}): {ex.Message}");
-                    }
-                }
-                else if (System.IO.Directory.Exists(iconPath))
-                {
-                    try
-                    {
-                        string dirName = System.IO.Path.GetFileName(iconPath); // 폴더명
-                        string destPath = System.IO.Path.Combine(desktopPath, dirName);
-                        
-                        // 이름 충돌 처리
-                        int count = 1;
-                        while (System.IO.File.Exists(destPath) || System.IO.Directory.Exists(destPath))
-                        {
-                            destPath = System.IO.Path.Combine(desktopPath, $"{dirName} ({count++})");
-                        }
-                        
-                        System.IO.Directory.Move(iconPath, destPath);
-                        
-                        // 위치 복원 리스트에 추가
-                        if (box.OriginalPositions != null && box.OriginalPositions.ContainsKey(dirName))
-                        {
-                            restoreList.Add((destPath, box.OriginalPositions[dirName]));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"폴더 복구 실패 ({iconPath}): {ex.Message}");
-                    }
-                }
-            }
-
-            // 일괄 위치 복원
-            if (restoreList.Count > 0 && _desktopIconService != null)
-            {
-                try
-                {
-                    // 쉘 갱신 요청
-                    IntelligentDesktop.Core.Interop.NativeMethods.SHChangeNotify(
-                        IntelligentDesktop.Core.Interop.NativeMethods.SHCNE_UPDATEDIR, 
-                        IntelligentDesktop.Core.Interop.NativeMethods.SHCNF_IDLIST | IntelligentDesktop.Core.Interop.NativeMethods.SHCNF_FLUSH, 
-                        IntPtr.Zero, IntPtr.Zero);
-                    
-                    // 아이콘 갱신 대기 (동기적)
-                    System.Threading.Thread.Sleep(50);
-                    
-                    var currentIcons = _desktopIconService.GetAllIcons();
-                    
-                    foreach (var item in restoreList)
-                    {
-                        for (int i = 0; i < currentIcons.Count; i++)
-                        {
-                            if (string.Equals(currentIcons[i].FullPath, item.Path, StringComparison.OrdinalIgnoreCase))
-                            {
-                                var parts = item.Position.Split(',');
-                                if (parts.Length == 2)
-                                {
-                                    int x = int.Parse(parts[0]);
-                                    int y = int.Parse(parts[1]);
-                                    _desktopIconService.SetIconPosition(i, new System.Windows.Point(x, y));
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
-                catch { }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"박스 복구 실패: {ex.Message}");
-        }
-    }
-
-    private void RestoreIconPosition(string fullPath, string positionStr)
-    {
-        try
-        {
-            if (_desktopIconService == null) return;
-            
-            var parts = positionStr.Split(',');
-            if (parts.Length != 2) return;
-            
-            int x = int.Parse(parts[0]);
-            int y = int.Parse(parts[1]);
-            
-            // 파일 시스템 반영 대기 (약간의 지연 필요할 수 있음)
-            // 바로 찾으면 못 찾을 수도 있으므로 100ms 정도 대기하거나 재시도하거나..
-            // 하지만 UI 스레드를 멈출 순 없음.
-            // 일단 바로 시도 후, 실패하면 Timer 등으로 재시도? 복잡함.
-            // 동기적으로 시도.
-            
-            // 아이콘 리스트 갱신
-            var icons = _desktopIconService.GetAllIcons();
-            
-            for (int i = 0; i < icons.Count; i++)
-            {
-                if (string.Equals(icons[i].FullPath, fullPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    _desktopIconService.SetIconPosition(i, new System.Windows.Point(x, y));
-                    break;
-                }
-            }
-        }
-        catch { }
-    }
+    
+    // ==============================================
+    // 이전 파일 이동 방식의 메서드들은 삭제됨 (iTop 방식 전환)
+    // - RestoreFilesToDesktop
+    // - MoveAllContentToDest
+    // - GetLongPath  
+    // - CollectFilesFromDesktop
+    // - RestoreFilesForBox
+    // - RestoreIconPosition
+    // ==============================================
 
     private void ToggleClockWidget()
     {
